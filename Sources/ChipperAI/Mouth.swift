@@ -7,7 +7,7 @@ public class Mouth: NSObject, ObservableObject {
     private var voice: AVSpeechSynthesisVoice?
     private var queue: [(AVSpeechUtterance, () -> Void)] = []
     
-    @Published private(set) var saying = ""
+    @Published public private(set) var saying = ""
     
     public override init() {
         let choices = AVSpeechSynthesisVoice.speechVoices()

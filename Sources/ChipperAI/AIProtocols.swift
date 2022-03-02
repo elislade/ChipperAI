@@ -82,9 +82,9 @@ public protocol Askable: Transcriber where Item == AI.TranscriptItem {
 
 extension Askable {
     
-    var isBusy: Bool { isSpeaking || isListening }
-    var isSpeaking: Bool { voice.isSpeaking }
-    var isListening: Bool { ears.isListening }
+    public var isBusy: Bool { isSpeaking || isListening }
+    public var isSpeaking: Bool { voice.isSpeaking }
+    public var isListening: Bool { ears.isListening }
     
     public func speak(_ string: String, transcribe: Bool = true, done: @escaping (() -> Void) = {}) {
         voice.speak(string, done: {

@@ -12,7 +12,7 @@ public class Ears: NSObject, ObservableObject {
     private var timer: Timer?
     private var completion: (Result<String, Error>) -> Void = { _ in }
     
-    @Published private(set) var hearing: String = ""
+    @Published public private(set) var hearing: String = ""
     
     public func authorize() {
         SFSpeechRecognizer.requestAuthorization({ auth in
