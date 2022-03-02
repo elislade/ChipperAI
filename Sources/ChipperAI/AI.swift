@@ -1,14 +1,14 @@
 import Foundation
 import Combine
 
-class AI: Askable, ObservableObject {
+public class AI: Askable, ObservableObject {
 
-    let voice = Mouth()
-    let ears = Ears()
+    public let voice = Mouth()
+    public let ears = Ears()
     
     private var watch: Set<AnyCancellable> = []
     
-    init() {
+    public init() {
         ears.objectWillChange.sink{
             self.objectWillChange.send()
         }.store(in: &watch)
@@ -18,32 +18,32 @@ class AI: Askable, ObservableObject {
         }.store(in: &watch)
     }
     
-    var transcript: [TranscriptItem] = [] {
+    public var transcript: [TranscriptItem] = [] {
         willSet { objectWillChange.send() }
     }
     
-    struct TranscriptItem: Transcribable, Identifiable {
+    public struct TranscriptItem: Transcribable, Identifiable {
         
-        enum Action: String, Hashable {
+        public enum Action: String, Hashable {
             case heard, spoke
         }
         
-        let id = UUID()
-        let action: Action
-        var messages: [Message]
+        public let id = UUID()
+        public let action: Action
+        public var messages: [Message]
         
-        init(_ action: Action, _ message: String){
+        public init(_ action: Action, _ message: String){
             self.action = action
             self.messages = [Message(message)]
         }
         
-        struct Message: TranscribableMessage, Identifiable {
+        public struct Message: TranscribableMessage, Identifiable {
             
-            let id = UUID()
-            var content: String
-            let date = Date()
+            public let id = UUID()
+            public var content: String
+            public let date = Date()
             
-            init(_ content: String){
+            public init(_ content: String){
                 self.content = content
             }
         }

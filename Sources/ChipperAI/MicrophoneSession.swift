@@ -1,15 +1,15 @@
 import Foundation
 import AVFoundation
 
-class MicrophoneSession: NSObject {
+public class MicrophoneSession: NSObject {
     
     private let sampleBufferQueue = DispatchQueue(label: "mic_buffer_queue")
     private let captureSession = AVCaptureSession()
     private let audioCapture = AVCaptureAudioDataOutput()
     
-    var didOutputBuffer: (CMSampleBuffer) -> Void
+    public var didOutputBuffer: (CMSampleBuffer) -> Void
         
-    init(_ didOutputBuffer: @escaping ((CMSampleBuffer) -> Void) = { _ in }) {
+    public init(_ didOutputBuffer: @escaping ((CMSampleBuffer) -> Void) = { _ in }) {
         self.didOutputBuffer = didOutputBuffer
         super.init()
         auth()
@@ -44,17 +44,17 @@ class MicrophoneSession: NSObject {
         }
     }
     
-    func start() {
+    public func start() {
         captureSession.startRunning()
     }
     
-    func stop() {
+    public func stop() {
         captureSession.stopRunning()
     }
 }
 
 extension MicrophoneSession: AVCaptureAudioDataOutputSampleBufferDelegate {
-    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+    public func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         didOutputBuffer(sampleBuffer)
     }
 }

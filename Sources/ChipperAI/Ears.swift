@@ -2,7 +2,7 @@ import Foundation
 import Speech
 import Combine
 
-class Ears: NSObject, ObservableObject {
+public class Ears: NSObject, ObservableObject {
     
     private var request = SFSpeechAudioBufferRecognitionRequest()
     private let microphone = MicrophoneSession()
@@ -14,7 +14,7 @@ class Ears: NSObject, ObservableObject {
     
     @Published private(set) var hearing: String = ""
     
-    func authorize() {
+    public func authorize() {
         SFSpeechRecognizer.requestAuthorization({ auth in
             if auth == .authorized {
                 self.recognize = SFSpeechRecognizer()
@@ -22,7 +22,7 @@ class Ears: NSObject, ObservableObject {
         })
     }
     
-    override init(){
+    public override init(){
         super.init()
         authorize()
         microphone.didOutputBuffer = request.appendAudioSampleBuffer
@@ -34,11 +34,11 @@ class Ears: NSObject, ObservableObject {
 
 extension Ears: SFSpeechRecognitionTaskDelegate {
     
-    func speechRecognitionTaskWasCancelled(_ task: SFSpeechRecognitionTask) {
+    public func speechRecognitionTaskWasCancelled(_ task: SFSpeechRecognitionTask) {
         print("task was cancelled")
     }
     
-    func speechRecognitionTask(_ task: SFSpeechRecognitionTask, didHypothesizeTranscription transcription: SFTranscription) {
+    public func speechRecognitionTask(_ task: SFSpeechRecognitionTask, didHypothesizeTranscription transcription: SFTranscription) {
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 0.6, repeats: false, block: { t in
             task.finish()
@@ -48,15 +48,15 @@ extension Ears: SFSpeechRecognitionTaskDelegate {
         hearing = transcription.formattedString
     }
     
-    func speechRecognitionDidDetectSpeech(_ task: SFSpeechRecognitionTask) {
+    public func speechRecognitionDidDetectSpeech(_ task: SFSpeechRecognitionTask) {
         print("did detect speach")
     }
     
-    func speechRecognitionTask(_ task: SFSpeechRecognitionTask, didFinishSuccessfully successfully: Bool) {
+    public func speechRecognitionTask(_ task: SFSpeechRecognitionTask, didFinishSuccessfully successfully: Bool) {
         print("finished success", successfully)
     }
     
-    func speechRecognitionTask(_ task: SFSpeechRecognitionTask, didFinishRecognition recognitionResult: SFSpeechRecognitionResult) {
+    public func speechRecognitionTask(_ task: SFSpeechRecognitionTask, didFinishRecognition recognitionResult: SFSpeechRecognitionResult) {
         print("finished recog")
         objectWillChange.send()
         completion(.success(recognitionResult.bestTranscription.formattedString))
@@ -70,9 +70,9 @@ extension Ears: SFSpeechRecognitionTaskDelegate {
 
 extension Ears: Listenable {
     
-    var isListening: Bool { active }
+    public var isListening: Bool { active }
     
-    func listen(context: Any? = nil, done: @escaping (Result<String, Error>) -> Void){
+    public func listen(context: Any? = nil, done: @escaping (Result<String, Error>) -> Void){
         microphone.start()
         active = true
         completion = done

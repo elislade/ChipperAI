@@ -1,7 +1,7 @@
 import Foundation
 import Combine
 
-protocol Interruptable {
+public protocol Interruptable {
     var isPaused: Bool { get }
     
     func pause()
@@ -10,7 +10,7 @@ protocol Interruptable {
 }
 
 
-protocol TranscribableMessage: Equatable {
+public protocol TranscribableMessage: Equatable {
     associatedtype Content: StringProtocol
     
     var id: UUID { get }
@@ -18,7 +18,8 @@ protocol TranscribableMessage: Equatable {
     var date: Date { get }
 }
 
-protocol Transcribable: Equatable {
+
+public protocol Transcribable: Equatable {
     associatedtype Action: Hashable
     associatedtype Message: TranscribableMessage
     
@@ -28,21 +29,24 @@ protocol Transcribable: Equatable {
     var messages: [Message] { get set }
 }
 
+
 extension Transcribable {
-    var date: Date {
+    public var date: Date {
         messages.last?.date ?? Date()
     }
 }
 
-protocol Transcriber: AnyObject {
+
+public protocol Transcriber: AnyObject {
     associatedtype Item: Transcribable
     var transcript: [Item] { get set }
     
     func transcribe(_ item: Item)
 }
 
+
 extension Transcriber {
-    func transcribe(_ item: Item) {
+    public func transcribe(_ item: Item) {
         if transcript.last?.action == item.action {
             transcript[transcript.count - 1].messages.append(contentsOf: item.messages)
         } else {
@@ -52,21 +56,21 @@ extension Transcriber {
 }
 
 
-protocol Speakable {
+public protocol Speakable {
     var isSpeaking: Bool { get }
     
     func speak(_ string: String, done: @escaping () -> Void) -> Void
 }
 
 
-protocol Listenable {
+public protocol Listenable {
     var isListening: Bool { get }
     
     func listen(context: Any?, done: @escaping (Result<String, Error>) -> Void)
 }
 
 
-protocol Askable: Transcriber where Item == AI.TranscriptItem {
+public protocol Askable: Transcriber where Item == AI.TranscriptItem {
     
     associatedtype Ear: Listenable
     associatedtype Voice: Speakable, Interruptable
@@ -82,7 +86,7 @@ extension Askable {
     var isSpeaking: Bool { voice.isSpeaking }
     var isListening: Bool { ears.isListening }
     
-    func speak(_ string: String, transcribe: Bool = true, done: @escaping (() -> Void) = {}) {
+    public func speak(_ string: String, transcribe: Bool = true, done: @escaping (() -> Void) = {}) {
         voice.speak(string, done: {
             if transcribe {
                 self.transcribe(AI.TranscriptItem(.spoke, string))
@@ -91,7 +95,7 @@ extension Askable {
         })
     }
     
-    func listen(context: Any? = nil, transcribe: Bool = true, done: @escaping (Result<String, Error>) -> Void) {
+    public func listen(context: Any? = nil, transcribe: Bool = true, done: @escaping (Result<String, Error>) -> Void) {
         ears.listen(context: context, done: { res in
             if transcribe {
                 if let r = try? res.get() {
@@ -103,8 +107,9 @@ extension Askable {
     }
 }
 
+
 extension Askable {
-    func ask(_ question: String, response: @escaping (String) -> Void) {
+    public func ask(_ question: String, response: @escaping (String) -> Void) {
         voice.pause()
         
         func done(_ res: Result<String, Error>){

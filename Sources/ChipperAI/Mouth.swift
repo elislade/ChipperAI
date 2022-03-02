@@ -1,7 +1,7 @@
 import Foundation
 import AVFoundation
 
-class Mouth: NSObject, ObservableObject {
+public class Mouth: NSObject, ObservableObject {
     
     private let synth = AVSpeechSynthesizer()
     private var voice: AVSpeechSynthesisVoice?
@@ -9,7 +9,7 @@ class Mouth: NSObject, ObservableObject {
     
     @Published private(set) var saying = ""
     
-    override init() {
+    public override init() {
         let choices = AVSpeechSynthesisVoice.speechVoices()
         voice = choices.sorted{ $0.quality.rawValue > $1.quality.rawValue }.first
         super.init()
@@ -18,7 +18,7 @@ class Mouth: NSObject, ObservableObject {
 }
 
 extension Mouth: AVSpeechSynthesizerDelegate {
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+    public func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
         if let i = self.queue.firstIndex(where: { $0.0.speechString == utterance.speechString }){
             self.objectWillChange.send()
             self.saying = ""
@@ -27,7 +27,7 @@ extension Mouth: AVSpeechSynthesizerDelegate {
         }
     }
     
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, willSpeakRangeOfSpeechString characterRange: NSRange, utterance: AVSpeechUtterance) {
+    public func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, willSpeakRangeOfSpeechString characterRange: NSRange, utterance: AVSpeechUtterance) {
         let str = utterance.speechString
         let end = str.index(str.startIndex, offsetBy: characterRange.upperBound)
         saying = String(str[str.startIndex..<end])
@@ -35,9 +35,9 @@ extension Mouth: AVSpeechSynthesizerDelegate {
 }
 
 extension Mouth: Speakable {
-    var isSpeaking: Bool { synth.isSpeaking }
+    public var isSpeaking: Bool { synth.isSpeaking }
     
-    func speak(_ string: String, done: @escaping () -> Void) {
+    public func speak(_ string: String, done: @escaping () -> Void) {
         objectWillChange.send()
         let u = AVSpeechUtterance(string: string)
         u.preUtteranceDelay = 0.3
@@ -48,19 +48,19 @@ extension Mouth: Speakable {
 }
 
 extension Mouth: Interruptable {
-    var isPaused: Bool { synth.isPaused }
+    public var isPaused: Bool { synth.isPaused }
     
-    func pause() {
+    public func pause() {
         objectWillChange.send()
         synth.pauseSpeaking(at: .word)
     }
     
-    func resume() {
+    public func resume() {
         objectWillChange.send()
         synth.continueSpeaking()
     }
     
-    func stop() {
+    public func stop() {
         objectWillChange.send()
         synth.stopSpeaking(at: .immediate)
     }
