@@ -10,43 +10,13 @@ public protocol Interruptable {
 }
 
 
-public protocol TranscribableMessage: Equatable {
-    associatedtype Content: StringProtocol
-    
-    var id: UUID { get }
-    var content: Content { get }
-    var date: Date { get }
-}
-
-
-public protocol Transcribable: Equatable {
-    associatedtype Action: Hashable
-    associatedtype Message: TranscribableMessage
-    
-    var id: UUID { get }
-    var action: Action { get }
-    
-    var messages: [Message] { get set }
-}
-
-
-extension Transcribable {
-    public var date: Date {
-        messages.last?.date ?? Date()
-    }
-}
-
-
 public protocol Transcriber: AnyObject {
-    associatedtype Item: Transcribable
-    var transcript: [Item] { get set }
-    
-    func transcribe(_ item: Item)
+    var transcript: [TranscriptItem] { get set }
+    func transcribe(_ item: TranscriptItem)
 }
-
 
 extension Transcriber {
-    public func transcribe(_ item: Item) {
+    public func transcribe(_ item: TranscriptItem) {
         if transcript.last?.action == item.action {
             transcript[transcript.count - 1].messages.append(contentsOf: item.messages)
         } else {
@@ -70,7 +40,7 @@ public protocol Listenable {
 }
 
 
-public protocol Askable: Transcriber where Item == AI.TranscriptItem {
+public protocol Askable: Transcriber {
     
     associatedtype Ear: Listenable
     associatedtype Voice: Speakable, Interruptable
@@ -89,7 +59,7 @@ extension Askable {
     public func speak(_ string: String, transcribe: Bool = true, done: @escaping (() -> Void) = {}) {
         voice.speak(string, done: {
             if transcribe {
-                self.transcribe(AI.TranscriptItem(.spoke, string))
+                self.transcribe(TranscriptItem(.spoke, string))
             }
             done()
         })
@@ -99,7 +69,7 @@ extension Askable {
         ears.listen(context: context, done: { res in
             if transcribe {
                 if let r = try? res.get() {
-                    self.transcribe(AI.TranscriptItem(.heard, r))
+                    self.transcribe(TranscriptItem(.heard, r))
                 }
             }
             done(res)
