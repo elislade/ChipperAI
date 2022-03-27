@@ -45,11 +45,17 @@ public class MicrophoneSession: NSObject {
     }
     
     public func start() {
-        captureSession.startRunning()
+        // startRunning is blocking, call from serial queue
+        DispatchQueue(label: "com.chipper.startListening").async {
+            self.captureSession.startRunning()
+        }
     }
     
     public func stop() {
-        captureSession.stopRunning()
+        // stopRunning is blocking, call from serial queue
+        DispatchQueue(label: "com.chipper.stopListening").async {
+            self.captureSession.stopRunning()
+        }
     }
 }
 
