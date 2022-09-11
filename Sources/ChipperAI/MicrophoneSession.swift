@@ -3,7 +3,8 @@ import AVFoundation
 
 public class MicrophoneSession: NSObject {
     
-    private let sampleBufferQueue = DispatchQueue(label: "mic_buffer_queue")
+    private let playbackQueue = DispatchQueue(label: "mic_playback")
+    private let sampleBufferQueue = DispatchQueue(label: "mic_buffer")
     private let captureSession = AVCaptureSession()
     private let audioCapture = AVCaptureAudioDataOutput()
     
@@ -45,15 +46,13 @@ public class MicrophoneSession: NSObject {
     }
     
     public func start() {
-        // startRunning is blocking, call from serial queue
-        DispatchQueue(label: "com.chipper.startListening").async {
+        playbackQueue.sync {
             self.captureSession.startRunning()
         }
     }
     
     public func stop() {
-        // stopRunning is blocking, call from serial queue
-        DispatchQueue(label: "com.chipper.stopListening").async {
+        playbackQueue.sync {
             self.captureSession.stopRunning()
         }
     }

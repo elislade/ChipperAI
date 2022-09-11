@@ -36,7 +36,7 @@ public protocol Speakable {
 public protocol Listenable {
     var isListening: Bool { get }
     
-    func listen(context: Any?, done: @escaping (Result<String, Error>) -> Void)
+    func listen(done: @escaping (Result<String, Error>) -> Void)
 }
 
 
@@ -65,8 +65,8 @@ extension Askable {
         })
     }
     
-    public func listen(context: Any? = nil, transcribe: Bool = true, done: @escaping (Result<String, Error>) -> Void) {
-        ears.listen(context: context, done: { res in
+    public func listen(transcribe: Bool = true, done: @escaping (Result<String, Error>) -> Void) {
+        ears.listen(done: { res in
             if transcribe {
                 if let r = try? res.get() {
                     self.transcribe(TranscriptItem(.heard, r))
@@ -91,7 +91,7 @@ extension Askable {
                 let ns = error as NSError
                 if ns.code == 203 {
                     self.speak("Sorry, I didn't quite catch that!") {
-                        self.listen(context: nil, done: done)
+                        self.listen(done: done)
                     }
                 } else {
                     self.speak(ns.localizedDescription)
@@ -100,7 +100,7 @@ extension Askable {
         }
         
         speak(question) {
-            self.listen(context: nil, done: done)
+            self.listen(done: done)
         }
     }
 }

@@ -15,18 +15,17 @@ public class Ears: NSObject, ObservableObject {
     @Published public private(set) var hearing: String = ""
     
     public func authorize() {
-        SFSpeechRecognizer.requestAuthorization({ auth in
+        SFSpeechRecognizer.requestAuthorization{ auth in
             if auth == .authorized {
                 self.recognize = SFSpeechRecognizer()
             }
-        })
+        }
     }
     
     public override init(){
         super.init()
         authorize()
         microphone.didOutputBuffer = request.appendAudioSampleBuffer
-        //request.shouldReportPartialResults = false
         request.taskHint = .dictation
     }
 }
@@ -40,9 +39,9 @@ extension Ears: SFSpeechRecognitionTaskDelegate {
     
     public func speechRecognitionTask(_ task: SFSpeechRecognitionTask, didHypothesizeTranscription transcription: SFTranscription) {
         timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 0.6, repeats: false, block: { t in
+        timer = Timer.scheduledTimer(withTimeInterval: 0.6, repeats: false){ time in
             task.finish()
-        })
+        }
         
         objectWillChange.send()
         hearing = transcription.formattedString
@@ -57,7 +56,6 @@ extension Ears: SFSpeechRecognitionTaskDelegate {
     }
     
     public func speechRecognitionTask(_ task: SFSpeechRecognitionTask, didFinishRecognition recognitionResult: SFSpeechRecognitionResult) {
-        print("finished recog")
         objectWillChange.send()
         completion(.success(recognitionResult.bestTranscription.formattedString))
         active = false
@@ -72,7 +70,7 @@ extension Ears: Listenable {
     
     public var isListening: Bool { active }
     
-    public func listen(context: Any? = nil, done: @escaping (Result<String, Error>) -> Void){
+    public func listen(done: @escaping (Result<String, Error>) -> Void){
         microphone.start()
         active = true
         completion = done

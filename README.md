@@ -1,6 +1,6 @@
 # ChipperAI
 
-ChipperAI is a audio request and response scripting system built with swift. It's a simple abstraction around speach synthesis, microphone sessions, and speach recognition to establish a faux scripted AI interaction.
+ChipperAI is a audio request and response scripting system built with swift. It's a simple abstraction around speech synthesis, microphone sessions, and speech recognition to establish a faux scripted AI interaction.
 
 It's built on simple protocols which allow different components to be changed without changing the underlaying scripted interactions.
 
