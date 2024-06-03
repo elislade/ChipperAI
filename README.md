@@ -10,8 +10,8 @@ To use it, simply provide the ask method a string that you want Chipper to say a
 
 ```
 let chipper = AI()
-chipper.ask("Hello World?"){ answer in
-    // do something with answer
+let answer = try await chipper.ask("Hello World?")
+// do something with answer
 }
 ```
 

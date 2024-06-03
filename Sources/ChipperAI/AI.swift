@@ -1,56 +1,47 @@
 import Foundation
 import Combine
 
-public class AI: Askable, ObservableObject {
+public final class AI: Askable, ObservableObject {
 
-    public let voice = Mouth()
-    public let ears = Ears()
+    public let voice: AnySpeakable
+    public let ears: AnyListenable
+    
+    @Published public var transcript: [TranscriptMessage] = []
+    @Published public private(set) var hearing: String? = nil
+    @Published public private(set) var saying: String? = nil
     
     private var bag: Set<AnyCancellable> = []
     
-    public init() {
-        ears.objectWillChange.sink{ [weak self] in
-            self?.objectWillChange.send()
-        }.store(in: &bag)
+    public init<Ear: Listenable, Voice: Speakable>(
+        ears: Ear = SFSpeechEars(),
+        voice: Voice = AVSynthMouth()
+    ) {
+        self.ears = AnyListenable(ears)
+        self.voice = AnySpeakable(voice)
         
-        voice.objectWillChange.sink{ [weak self] in
-            self?.objectWillChange.send()
-        }.store(in: &bag)
+        ears.hearingPublisher
+            .receive(on: DispatchQueue.main)
+            .sink{ [weak self] str in
+                self?.hearing = str
+            }.store(in: &bag)
+        
+        voice.sayingPublisher
+            .receive(on: DispatchQueue.main)
+            .sink{ [weak self] str in
+                self?.saying = str
+            }.store(in: &bag)
     }
     
-    public var transcript: [TranscriptItem] = [] {
-        willSet { objectWillChange.send() }
+    public func clear() {
+        hearing = nil
+        saying = nil
+        transcript = []
     }
+    
 }
 
-
-public struct TranscriptItem: Identifiable {
-    
-    public enum Action: String, Hashable {
-        case heard, spoke
-    }
-    
-    public let id = UUID()
-    public let action: Action
-    public var messages: [Message]
-    
-    public var date: Date {
-        messages.last?.date ?? Date()
-    }
-    
-    public init(_ action: Action, _ message: String){
-        self.action = action
-        self.messages = [Message(message)]
-    }
-    
-    public struct Message: Identifiable {
-        
-        public let id = UUID()
-        public var content: String
-        public let date = Date()
-        
-        public init(_ content: String){
-            self.content = content
-        }
+public extension AI {
+    static func stub(responses: [String] = []) -> AI {
+        AI(ears: StubEar(cannedResponses: responses), voice: StubMouth())
     }
 }
