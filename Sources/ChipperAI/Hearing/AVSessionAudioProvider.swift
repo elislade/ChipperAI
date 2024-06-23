@@ -28,7 +28,9 @@ public final class AVSessionAudioProvider: BufferProvider {
         guard
             let device = session.devices.first,
             let input = try? AVCaptureDeviceInput(device: device)
-        else { return }
+        else {
+            fatalError("Could not locate microphone capture device.")
+        }
         
         captureSession.beginConfiguration()
         captureSession.addInput(input)
@@ -44,7 +46,7 @@ public final class AVSessionAudioProvider: BufferProvider {
             
             captureSession.startRunning()
             
-            continuation.onTermination = { _ in
+            continuation.onTermination = { [captureSession] _ in
                 captureSession.stopRunning()
             }
         }

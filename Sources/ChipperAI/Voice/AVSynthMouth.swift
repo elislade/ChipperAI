@@ -16,26 +16,27 @@ public final class AVSynthMouth: Speakable {
     }
     
     public func speak(_ phrase: String) -> AsyncThrowingStream<String, Error> {
-        let utterance = AVSpeechUtterance(string: phrase)
-        utterance.preUtteranceDelay = 0.3
-        utterance.postUtteranceDelay = 0.5
-        utterance.voice = voice
-        synth.speak(utterance)
-        
-        return AsyncThrowingStream{ [delegateWrapper] continuation in
-            continuation.onTermination = { type in
+        AsyncThrowingStream{ [unowned self] continuation in
+            continuation.onTermination = { [synth] type in
                 switch type {
                 case .finished: return
-                case .cancelled: self.synth.stopSpeaking(at: .immediate)
+                case .cancelled: synth.stopSpeaking(at: .immediate)
                 @unknown default: return
                 }
             }
            
-            delegateWrapper.didFinish = { synth, utterance in
+            let utterance = AVSpeechUtterance(string: phrase)
+            utterance.preUtteranceDelay = 0.3
+            utterance.postUtteranceDelay = 0.5
+            utterance.voice = voice
+            
+            synth.speak(utterance)
+            
+            delegateWrapper.didFinish = { _, _ in
                 continuation.finish()
             }
             
-            delegateWrapper.willSpeakRangeOfSpeechString = { synth, range, utterance in
+            delegateWrapper.willSpeakRangeOfSpeechString = { _, range, utterance in
                 let str = utterance.speechString
                 let end = str.index(str.startIndex, offsetBy: range.upperBound)
                 continuation.yield(String(str[str.startIndex..<end]))

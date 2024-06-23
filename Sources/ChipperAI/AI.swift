@@ -53,7 +53,7 @@ import Foundation
             self.hearing = nil
             return hearing
         } else {
-            return ""
+            fatalError("Hearing should never be nil after listening.")
         }
     }
     

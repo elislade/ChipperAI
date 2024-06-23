@@ -22,9 +22,13 @@ public final class AVPlayerAudioProvider: BufferProvider {
     
     public var bufferStream: AsyncStream<AVAudioPCMBuffer> {
         AsyncStream { [unowned self] continuation in
-            try? engine.start()
+            do {
+                try engine.start()
+            } catch {
+                continuation.finish()
+            }
             
-            continuation.onTermination = { _ in
+            continuation.onTermination = { [unowned self] _ in
                 player.stop()
                 engine.stop()
             }
@@ -33,7 +37,7 @@ public final class AVPlayerAudioProvider: BufferProvider {
                 onBus: 0,
                 bufferSize: AVAudioFrameCount(file.length),
                 format: file.processingFormat
-            ){ [weak self] buffer, time in
+            ){ buffer, _ in
                 continuation.yield(buffer)
             }
             

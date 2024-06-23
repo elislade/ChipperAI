@@ -1,7 +1,7 @@
 import Foundation
 
 public protocol BufferProvider: AnyObject {
-    associatedtype Buffer: Sendable
+    associatedtype Buffer
     var bufferStream: AsyncStream<Buffer> { get }
 }
 

@@ -1,13 +1,5 @@
 import Foundation
 
-public protocol Interruptable {
-    var isPaused: Bool { get }
-    
-    func pause()
-    func resume()
-    func stop()
-}
-
 
 public protocol Speakable {
     
