@@ -1,23 +1,13 @@
 import Foundation
 import Speech
-import Combine
 
-public final class SFSpeechEars<AudioSource: BufferProvider> {
+public final class SFSpeechEars<AudioSource: BufferProvider>: Listenable {
     
     private let audioSource: AudioSource
-    private let delegateWrapper = SFSpeechRecognitionTaskDelegateWrapper()
     private let recognizer: SFSpeechRecognizer
+    private let delegateWrapper = SFSpeechRecognitionTaskDelegateWrapper()
     
-    private var request: SFSpeechAudioBufferRecognitionRequest?
-    private var task: SFSpeechRecognitionTask?
-    private var timer: Timer?
-    private var heard: String = ""
-    
-    private var bag: Set<AnyCancellable> = []
-    
-    @Published private var hearing: String?
-    
-    private init(audioSource: AudioSource){
+    private init(audioSource: AudioSource) {
         guard SFSpeechRecognizer.authorizationStatus() == .authorized else {
             fatalError("SFSpeechEars requires SFSpeechRecognizer authorization before initialization.")
         }
@@ -28,112 +18,78 @@ public final class SFSpeechEars<AudioSource: BufferProvider> {
         
         self.audioSource = audioSource
         self.recognizer = recognizer
-        setupDelegateWrapper()
     }
     
-    private func setupDelegateWrapper() {
-        delegateWrapper.wasCancelled = { [unowned self] task in
-            self.cancel()
-        }
-        
-        delegateWrapper.didHypothesize = { [unowned self] task, transcription in
-            timer?.invalidate()
-            timer = Timer.scheduledTimer(withTimeInterval: 0.6, repeats: false){ [task] _ in
-                task.finish()
+    public var textStream: AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { [unowned self] continuation in
+            let request = SFSpeechAudioBufferRecognitionRequest()
+            let task = recognizer.recognitionTask(with: request, delegate: delegateWrapper)
+            var timer: Timer?
+            
+            let bufferTask = Task {
+                for await buffer in audioSource.bufferStream {
+                    if let buffer = buffer as? AVAudioPCMBuffer {
+                        request.append(buffer)
+                    } else {
+                        request.appendAudioSampleBuffer(buffer as! CMSampleBuffer)
+                    }
+                }
             }
             
-            hearing = transcription.formattedString
-        }
-        
-        delegateWrapper.didFinish = { [unowned self] task, recognitionResult in
-            hearing = recognitionResult.bestTranscription.formattedString
-            heard = recognitionResult.bestTranscription.formattedString
-            if let runner = audioSource as? Runnable {
-                runner.stop()
+            continuation.onTermination = { type in
+                bufferTask.cancel()
+                
+                switch type {
+                case .finished: task.finish()
+                case .cancelled: task.cancel()
+                @unknown default: task.cancel()
+                }
             }
-            request?.endAudio()
+
+            delegateWrapper.wasCancelled = { task in
+                bufferTask.cancel()
+                request.endAudio()
+            }
+            
+            delegateWrapper.didHypothesize = { task, transcription in
+                timer?.invalidate()
+                timer = Timer.scheduledTimer(withTimeInterval: 0.6, repeats: false){ [task] _ in
+                    task.finish()
+                }
+
+                continuation.yield(transcription.formattedString)
+            }
+            
+            delegateWrapper.didFinish = { task, recognitionResult in
+                bufferTask.cancel()
+                request.endAudio()
+                continuation.yield(recognitionResult.bestTranscription.formattedString)
+                
+                if let error = task.error  {
+                    continuation.finish(throwing: error)
+                } else {
+                    continuation.finish()
+                }
+            }
         }
     }
     
 }
 
 extension SFSpeechEars where AudioSource.Buffer == CMSampleBuffer {
+    
     public convenience init(sample: AudioSource = AVSessionAudioProvider()){
         self.init(audioSource: sample)
-        sample.bufferPublisher.sink{ [weak self] buffer in
-            guard let request = self?.request else { return }
-            request.appendAudioSampleBuffer(buffer)
-        }.store(in: &bag)
     }
+    
 }
 
 extension SFSpeechEars where AudioSource.Buffer == AVAudioPCMBuffer {
+    
     public convenience init(pcm: AudioSource){
         self.init(audioSource: pcm)
-        pcm.bufferPublisher.sink{ [weak self] buffer in
-            guard let request = self?.request else { return }
-            request.append(buffer)
-        }.store(in: &bag)
     }
-}
 
-extension SFSpeechEars: Listenable {
-    
-    public var isListening: Bool {
-        guard let task else { return false }
-        return task.state == .running
-    }
-    
-    public var hearingPublisher: AnyPublisher<String?, Never> {
-        $hearing.eraseToAnyPublisher()
-    }
-    
-    public func listen() async throws -> String {
-        defer {
-            hearing = nil
-        }
-        
-        task?.finish()
-        task = nil
-        heard = ""
-        hearing = ""
-        
-        if let runner = audioSource as? Runnable {
-            runner.start()
-        }
-        
-        let request = SFSpeechAudioBufferRecognitionRequest()
-        self.request = request
-        task = recognizer.recognitionTask(with: request, delegate: delegateWrapper)
-        
-        while heard.isEmpty {
-            if Task.isCancelled {
-                cancel()
-                return ""
-            }
-            continue
-        }
-
-        task = nil
-        self.request?.endAudio()
-        self.request = nil
-        return heard
-    }
-}
-
-extension SFSpeechEars: Cancellable {
-    
-    public func cancel() {
-        task?.cancel()
-        if let runner = audioSource as? Runnable {
-            runner.stop()
-        }
-        request?.endAudio()
-        request = nil
-        hearing = nil
-        heard = "{{null}}"
-    }
-    
 }
 
 
@@ -174,3 +130,5 @@ public extension SFSpeechRecognizer {
     }
     
 }
+
+

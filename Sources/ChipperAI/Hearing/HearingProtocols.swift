@@ -1,34 +1,25 @@
 import Foundation
-import Combine
 
 public protocol BufferProvider: AnyObject {
-    associatedtype Buffer
-    var bufferPublisher: AnyPublisher<Buffer, Never> { get }
+    associatedtype Buffer: Sendable
+    var bufferStream: AsyncStream<Buffer> { get }
 }
 
 public protocol Listenable {
-    var isListening: Bool { get }
-    var hearingPublisher: AnyPublisher<String?, Never> { get }
     
-    func listen() async throws -> String
+    var textStream: AsyncThrowingStream<String, Error> { get }
+    
 }
 
 public final class AnyListenable: Listenable {
     
-    public var isListening: Bool { listenable.isListening }
-    
-    public var hearingPublisher: AnyPublisher<String?, Never> {
-        listenable.hearingPublisher
-    }
+    public var textStream: AsyncThrowingStream<String, Error> { listenable.textStream }
     
     private let erasedValue: Any
-    private var listenable: Listenable { erasedValue as! Listenable }
+    private var listenable: any Listenable { erasedValue as! any Listenable }
     
     public init<Hearing: Listenable>(_ hearing: Hearing){
         self.erasedValue = hearing
     }
     
-    public func listen() async throws -> String {
-        try await listenable.listen()
-    }
 }

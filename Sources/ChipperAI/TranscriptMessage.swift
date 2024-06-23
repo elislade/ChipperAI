@@ -10,6 +10,13 @@ public struct TranscriptMessage: Identifiable, Hashable {
     public enum Content: Hashable {
         case text(String)
         case media(URL)
+        
+        public var string: String? {
+            if case let .text(string) = self {
+                return string
+            }
+            return nil
+        }
     }
     
     public let id: UUID

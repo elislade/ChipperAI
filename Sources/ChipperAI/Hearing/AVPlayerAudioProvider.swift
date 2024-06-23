@@ -1,14 +1,12 @@
 import Foundation
 import AVFoundation
-import Combine
 
-final public class AVPlayerAudioProvider {
+public final class AVPlayerAudioProvider: BufferProvider {
     
     private let engine: AVAudioEngine
     private let player: AVAudioPlayerNode
     private let file: AVAudioFile
-    private let bufferPasthrough = PassthroughSubject<AVAudioPCMBuffer, Never>()
-    
+   
     public init(fileUrl: URL) {
         do {
             self.file = try AVAudioFile(forReading: fileUrl)
@@ -21,47 +19,27 @@ final public class AVPlayerAudioProvider {
             fatalError(error.localizedDescription)
         }
     }
-}
-
-
-extension AVPlayerAudioProvider: BufferProvider {
     
-    public var bufferPublisher: AnyPublisher<AVAudioPCMBuffer, Never> {
-        bufferPasthrough.eraseToAnyPublisher()
-    }
-    
-}
-
-
-extension AVPlayerAudioProvider: Runnable {
-    
-    public var isRunning: Bool { player.isPlaying }
-    
-    public func start() {
-        guard !isRunning else { return }
-        
-        do {
-            try engine.start()
+    public var bufferStream: AsyncStream<AVAudioPCMBuffer> {
+        AsyncStream { [unowned self] continuation in
+            try? engine.start()
+            
+            continuation.onTermination = { _ in
+                player.stop()
+                engine.stop()
+            }
+            
             player.installTap(
                 onBus: 0,
                 bufferSize: AVAudioFrameCount(file.length),
                 format: file.processingFormat
             ){ [weak self] buffer, time in
-                self?.bufferPasthrough.send(buffer)
+                continuation.yield(buffer)
             }
             
             player.scheduleFile(file, at: nil)
             player.play(at: nil)
-        } catch {
-            print("Start", error)
         }
     }
     
-    public func stop() {
-        guard isRunning else { return }
-        player.stop()
-        player.removeTap(onBus: 0)
-        engine.stop()
-    }
-
 }

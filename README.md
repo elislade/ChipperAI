@@ -15,4 +15,4 @@ let answer = try await chipper.ask("Hello World?")
 }
 ```
 
-NOTE: You will need to add privacy messages for `NSSpeechRecognitionUsageDescription` and `NSMicrophoneUsageDescription`.
+NOTE: You will need to add privacy messages for `NSSpeechRecognitionUsageDescription` and `NSMicrophoneUsageDescription` and have granted user permission before using AI class.

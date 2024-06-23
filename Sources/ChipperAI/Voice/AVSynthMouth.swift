@@ -1,96 +1,67 @@
 import Foundation
 import AVFoundation
-import Combine
 
-public class AVSynthMouth: NSObject {
+public final class AVSynthMouth: Speakable {
     
     private let synth = AVSpeechSynthesizer()
     private let voice: AVSpeechSynthesisVoice
-    private var uttering: AVSpeechUtterance?
-    public var bufferProvider: (AVAudioPCMBuffer) -> Void = { _ in}
-    
-    @Published private var saying: String?
+    private let delegateWrapper = AVSpeechSynthesizerDelegateWrapper()
     
     public init(voice: AVSpeechSynthesisVoice = AVSpeechSynthesisVoice()) {
         self.voice = voice
-        super.init()
-        synth.delegate = self
+        self.synth.delegate = delegateWrapper
         #if !os(macOS)
-        synth.usesApplicationAudioSession = false
+        self.synth.usesApplicationAudioSession = false
         #endif
     }
     
-}
-
-
-extension AVSynthMouth: AVSpeechSynthesizerDelegate {
-    
-    public func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        self.saying = nil
-        self.uttering = nil
-    }
-    
-    public func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
-        self.saying = nil
-        self.uttering = nil
-    }
-    
-    public func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, willSpeakRangeOfSpeechString characterRange: NSRange, utterance: AVSpeechUtterance) {
-        let str = utterance.speechString
-        let end = str.index(str.startIndex, offsetBy: characterRange.upperBound)
-        saying = String(str[str.startIndex..<end])
-    }
-    
-}
-
-
-extension AVSynthMouth: Speakable {
-    
-    public var isSpeaking: Bool { synth.isSpeaking }
-    
-    public var sayingPublisher: AnyPublisher<String?, Never> {
-        $saying.eraseToAnyPublisher()
-    }
-    
-    public func speak(_ string: String) async {
-        saying = nil
-        uttering = nil
-        
-        let utterance = AVSpeechUtterance(string: string)
+    public func speak(_ phrase: String) -> AsyncThrowingStream<String, Error> {
+        let utterance = AVSpeechUtterance(string: phrase)
         utterance.preUtteranceDelay = 0.3
+        utterance.postUtteranceDelay = 0.5
         utterance.voice = voice
         synth.speak(utterance)
-        uttering = utterance
         
-        while uttering != nil {
-            if Task.isCancelled {
-                synth.stopSpeaking(at: .immediate)
-                saying = nil
-                uttering = nil
+        return AsyncThrowingStream{ [delegateWrapper] continuation in
+            continuation.onTermination = { type in
+                switch type {
+                case .finished: return
+                case .cancelled: self.synth.stopSpeaking(at: .immediate)
+                @unknown default: return
+                }
             }
-            continue
+           
+            delegateWrapper.didFinish = { synth, utterance in
+                continuation.finish()
+            }
+            
+            delegateWrapper.willSpeakRangeOfSpeechString = { synth, range, utterance in
+                let str = utterance.speechString
+                let end = str.index(str.startIndex, offsetBy: range.upperBound)
+                continuation.yield(String(str[str.startIndex..<end]))
+            }
         }
-        
-        return
     }
+    
 }
 
 
-extension AVSynthMouth: Interruptable {
+final class AVSpeechSynthesizerDelegateWrapper: NSObject, AVSpeechSynthesizerDelegate {
     
-    public var isPaused: Bool { synth.isPaused }
+    var didFinish: (AVSpeechSynthesizer, AVSpeechUtterance) -> Void = { _,_ in }
+    var didCancel: (AVSpeechSynthesizer, AVSpeechUtterance) -> Void = { _,_ in }
+    var willSpeakRangeOfSpeechString: (AVSpeechSynthesizer, NSRange, AVSpeechUtterance) -> Void = { _,_,_ in }
     
-    public func pause() {
-        synth.pauseSpeaking(at: .word)
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        didFinish(synthesizer, utterance)
     }
     
-    public func resume() {
-        synth.continueSpeaking()
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
+       didCancel(synthesizer, utterance)
     }
     
-    public func stop() {
-        synth.stopSpeaking(at: .immediate)
-        uttering = nil
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, willSpeakRangeOfSpeechString characterRange: NSRange, utterance: AVSpeechUtterance) {
+        willSpeakRangeOfSpeechString(synthesizer, characterRange, utterance)
     }
     
 }

@@ -1,21 +1,19 @@
 import Foundation
-import Combine
 import AVFoundation
 
-public class AVSessionAudioProvider: NSObject {
+public final class AVSessionAudioProvider: BufferProvider {
     
     private let sampleBufferQueue = DispatchQueue(label: "mic_buffer_queue")
     private let captureSession = AVCaptureSession()
     private let audioCapture = AVCaptureAudioDataOutput()
-    private let bufferPassthrough = PassthroughSubject<CMSampleBuffer, Never>()
+    private let delegateWrapper = AVCaptureAudioDataOutputSampleBufferDelegateWrapper()
     
-    public override init() {
+    public init() {
         guard AVCaptureDevice.authorizationStatus(for: .audio) == .authorized else {
             fatalError("AVSessionAudioProvider requires microphone authorization before initalization.")
         }
         
-        super.init()
-        audioCapture.setSampleBufferDelegate(self, queue: sampleBufferQueue)
+        audioCapture.setSampleBufferDelegate(delegateWrapper, queue: sampleBufferQueue)
         captureSession.addOutput(audioCapture)
         configureSession()
     }
@@ -37,39 +35,30 @@ public class AVSessionAudioProvider: NSObject {
         captureSession.commitConfiguration()
     }
     
-}
-
-
-extension AVSessionAudioProvider: AVCaptureAudioDataOutputSampleBufferDelegate {
-    public func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        bufferPassthrough.send(sampleBuffer)
-    }
-}
-
-
-extension AVSessionAudioProvider: BufferProvider {
     
-    public var bufferPublisher: AnyPublisher<CMSampleBuffer, Never> {
-        bufferPassthrough.eraseToAnyPublisher()
-    }
-    
-}
-
-
-extension AVSessionAudioProvider: Runnable {
-    
-    public var isRunning: Bool { captureSession.isRunning }
-    
-    public func start() {
-        Task { [weak self] in
-            self?.captureSession.startRunning()
+    public var bufferStream: AsyncStream<CMSampleBuffer> {
+        AsyncStream { [unowned self] continuation in
+            delegateWrapper.didOutput = { _, sample, _ in
+                continuation.yield(sample)
+            }
+            
+            captureSession.startRunning()
+            
+            continuation.onTermination = { _ in
+                captureSession.stopRunning()
+            }
         }
     }
     
-    public func stop() {
-        Task { [weak self] in
-            self?.captureSession.stopRunning()
-        }
+}
+
+
+final class AVCaptureAudioDataOutputSampleBufferDelegateWrapper: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
+    
+    var didOutput: (AVCaptureOutput, CMSampleBuffer, AVCaptureConnection) -> Void = { _,_,_ in }
+    
+    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        didOutput(output, sampleBuffer, connection)
     }
     
 }
